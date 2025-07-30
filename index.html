@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Priority Matrix</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://source.unsplash.com/1600x900/?focus,productivity') no-repeat center center/cover;
+      color: #fff;
+    }
+    header {
+      text-align: center;
+      padding: 20px;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+    header h1 {
+      margin-bottom: 5px;
+    }
+    header p {
+      font-style: italic;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 20px;
+      border-radius: 12px;
+    }
+    .task-form input,
+    .task-form select {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    .task-form button {
+      width: 100%;
+      padding: 12px;
+      background-color: #4CAF50;
+      color: white;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      cursor: pointer;
+      background: #333;
+      margin: 2px;
+      border-radius: 8px;
+    }
+    .tab.active {
+      background: #4CAF50;
+    }
+    .task-list, .hourly-tasks, .focus-section, .mood-tracker {
+      margin-top: 20px;
+    }
+    .task-item {
+      background-color: #222;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    .hour-slot {
+      padding: 8px;
+      border-bottom: 1px solid #444;
+    }
+    .hour-slot input {
+      width: 90%;
+      margin-top: 5px;
+    }
+    .mood-tracker select, .mood-tracker input {
+      width: auto;
+      padding: 10px;
+      margin-right: 10px;
+    }
+    .focus-section {
+      border: 2px dashed #4CAF50;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Welcome Dear Deepak 👋</h1>
+    <p>“Focus on being productive instead of busy.” — Tim Ferriss</p>
+  </header>
+  <div class="container">
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('all')">All Tasks</div>
+      <div class="tab" onclick="showTab('today')">Today</div>
+      <div class="tab" onclick="showTab('focus')">Focus</div>
+      <div class="tab" onclick="showTab('mood')">Mood Tracker</div>
+    </div>
+
+    <div class="task-form">
+      <input type="text" id="task" placeholder="Enter your task...">
+      <select id="category">
+        <option value="NDPS">NDPS</option>
+        <option value="Business">Business</option>
+        <option value="Family">Family</option>
+        <option value="Personnel">Personnel</option>
+        <option value="Habit">Habit</option>
+        <option value="Appointment">Appointment</option>
+        <option value="Mindfresh">Mindfresh</option>
+        <option value="Other">Other</option>
+      </select>
+      <input type="datetime-local" id="completionDate">
+      <input type="number" id="importance" placeholder="Importance (1-10)">
+      <input type="number" id="relation" placeholder="Relation (1-10)">
+      <input type="number" id="urgency" placeholder="Urgency (1-10)">
+      <input type="number" id="compulsion" placeholder="Compulsion (1-10)">
+      <button onclick="addTask()">Add Task</button>
+    </div>
+
+    <div id="all" class="task-list"></div>
+    <div id="today" class="hourly-tasks" style="display:none">
+      <h2>Today's Tasks by Hour</h2>
+      <div id="hourlySlots"></div>
+    </div>
+    <div id="focus" class="focus-section" style="display:none">
+      <h2>🎯 Focus Task</h2>
+      <div id="focusTask"></div>
+    </div>
+    <div id="mood" class="mood-tracker" style="display:none">
+      <h2>😊 Mood Tracker</h2>
+      <select id="moodSelect">
+        <option>😃</option>
+        <option>😊</option>
+        <option>😐</option>
+        <option>😔</option>
+        <option>😢</option>
+      </select>
+      <input type="time" id="moodTime">
+      <button onclick="logMood()">Log Mood</button>
+      <ul id="moodLogs"></ul>
+    </div>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+    let focus = JSON.parse(localStorage.getItem('focusTask') || 'null');
+    let moods = JSON.parse(localStorage.getItem('moods') || '[]');
+
+    function saveTasks() {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+      renderTasks();
+      renderToday();
+    }
+
+    function addTask() {
+      const task = {
+        text: document.getElementById('task').value,
+        category: document.getElementById('category').value,
+        date: document.getElementById('completionDate').value,
+        importance: +document.getElementById('importance').value,
+        relation: +document.getElementById('relation').value,
+        urgency: +document.getElementById('urgency').value,
+        compulsion: +document.getElementById('compulsion').value,
+        done: false
+      };
+      tasks.push(task);
+      document.querySelectorAll('.task-form input').forEach(i => i.value = '');
+      saveTasks();
+    }
+
+    function renderTasks() {
+      const list = document.getElementById('all');
+      list.innerHTML = '';
+      tasks.sort((a,b) => ((b.importance + b.relation + b.urgency + b.compulsion) - (a.importance + a.relation + a.urgency + a.compulsion)));
+      tasks.forEach((t, i) => {
+        const div = document.createElement('div');
+        div.className = 'task-item';
+        div.innerHTML = `<strong>${t.text}</strong><br>${t.category} | ${t.date}<br>
+          <button onclick="setFocus(${i})">🎯 Focus</button>
+          <button onclick="deleteTask(${i})">🗑 Delete</button>`;
+        list.appendChild(div);
+      });
+    }
+
+    function renderToday() {
+      const today = new Date().toISOString().slice(0, 10);
+      const container = document.getElementById('hourlySlots');
+      container.innerHTML = '';
+      for (let hour = 6; hour <= 23; hour++) {
+        const hourStr = `${hour.toString().padStart(2, '0')}:00`;
+        const slotTasks = tasks.filter(t => t.date.startsWith(today) && t.date.includes(hourStr));
+        const div = document.createElement('div');
+        div.className = 'hour-slot';
+        div.innerHTML = `<strong>${hourStr}</strong>
+          <ul>${slotTasks.map(t => `<li>${t.text}</li>`).join('')}</ul>`;
+        container.appendChild(div);
+      }
+    }
+
+    function setFocus(index) {
+      focus = tasks[index];
+      localStorage.setItem('focusTask', JSON.stringify(focus));
+      renderFocus();
+    }
+
+    function renderFocus() {
+      const area = document.getElementById('focusTask');
+      area.innerHTML = focus ? `<p>${focus.text}</p><button onclick="completeFocus()">✅ Done</button>` : 'No task selected.';
+    }
+
+    function completeFocus() {
+      tasks = tasks.filter(t => t.text !== focus.text);
+      focus = null;
+      localStorage.removeItem('focusTask');
+      saveTasks();
+      renderFocus();
+    }
+
+    function deleteTask(index) {
+      tasks.splice(index, 1);
+      saveTasks();
+    }
+
+    function showTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t?.classList?.remove('visible'));
+      ['all', 'today', 'focus', 'mood'].forEach(id => document.getElementById(id).style.display = 'none');
+      document.getElementById(tab).style.display = 'block';
+      document.querySelector(`.tab[onclick*="${tab}"]`).classList.add('active');
+    }
+
+    function logMood() {
+      const mood = document.getElementById('moodSelect').value;
+      const time = document.getElementById('moodTime').value;
+      moods.push({ mood, time });
+      localStorage.setItem('moods', JSON.stringify(moods));
+      renderMoods();
+    }
+
+    function renderMoods() {
+      const list = document.getElementById('moodLogs');
+      list.innerHTML = moods.map(m => `<li>${m.time} - ${m.mood}</li>`).join('');
+    }
+
+    renderTasks();
+    renderToday();
+    renderFocus();
+    renderMoods();
+  </script>
+</body>
+</html>
